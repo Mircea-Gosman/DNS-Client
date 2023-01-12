@@ -22,7 +22,7 @@ def validate_domain(domain):
         print("ERROR:\tThe domain name should be of format: www.myDomain.com")
         exit(4)
 
-    return domain
+    return "www." + domain if "www" not in domain else domain
 
 
 def validate_integer(switch, value):
