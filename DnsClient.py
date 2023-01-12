@@ -17,9 +17,6 @@ args = {
 def check_CLI():
     # Collect Data
     for i in range(1, len(sys.argv)):
-        if sys.argv[i] not in args:
-            continue
-
         if i == len(sys.argv) - 2:
             args["server"] = Helper.validate_server(sys.argv[i])
             continue
@@ -28,12 +25,21 @@ def check_CLI():
             args["name"] = Helper.validate_domain(sys.argv[i])
             continue
 
+        if sys.argv[i] == "-mx" or sys.argv[i] == "-ns":
+            args[sys.argv[i]] = True 
+            continue
+
+        if sys.argv[i] not in args:
+            continue
+
         args[sys.argv[i]] = Helper.validate_integer(sys.argv[i], sys.argv[i + 1])
 
     # Check Errors
     if args["-mx"] and args["-ns"]:
         print("ERROR:\tCan not enable both mail server and name server at the same time.")
         exit(1)
+
+    print(f"Parsed CLI: {args}")
 
 
 def send_request():
@@ -95,14 +101,27 @@ def send_request():
     query += QCLASS
 
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    client.sendto(query, server)
+    client.settimeout(args['-t'])
+    answer = None
 
-    answer = client.recvfrom(receptionByteSize)
+    for i in range(1, args['-r'] + 1):
+        try:
+            client.sendto(bytes(query, encoding='utf8'), server)
+
+            answer = client.recvfrom(receptionByteSize)
+            break
+        except:
+            print(f"The request {i}/{args['-r']} timed out.")
+
+
     print(answer)
-    return
+    return answer
 
 
 def parse_response(response):
+
+
+
     return
 
 
