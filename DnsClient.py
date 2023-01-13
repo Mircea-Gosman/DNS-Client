@@ -79,7 +79,7 @@ def send_request():
     nameArray = args["name"].split(".")
     QNAME = ""
     for name in nameArray:
-        length = str(oct(len(name)).lstrip("O"))
+        length = str(oct(len(name)).lstrip("0o")).zfill(2)
         asciiName = name.encode("utf-8").hex()
         QNAME += length
         QNAME += asciiName
@@ -112,7 +112,6 @@ def send_request():
             break
         except:
             print(f"The request {i}/{args['-r']} timed out.")
-
 
     print(answer)
     return answer
