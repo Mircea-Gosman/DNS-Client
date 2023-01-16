@@ -50,27 +50,26 @@ def send_request():
     ID = str(hex(random.getrandbits(16)).lstrip("0x"))
     query += ID
 
-    FLAGS = "0100"
-    query += FLAGS
+    FLAGS = ""
+    QR = "0"
+    FLAGS += QR
+    OPCODE = "0000"
+    FLAGS += OPCODE
+    AA = "0"
+    FLAGS += AA
+    TC = "0"
+    FLAGS += TC
+    RD = "1"
+    FLAGS += RD
+    RA = "0"
+    FLAGS += RA
+    Z = "000"
+    FLAGS += Z
+    RCODE = "0000"
+    FLAGS += RCODE
+    FLAGS = hex(int(FLAGS,2)).zfill(4).lstrip("0x").zfill(4)
 
-    # # Subfields don't seem needed from the DNS Query doc we will see when testing the code
-    # QR = "1"
-    # query += QR
-    # OPCODE = "0000"
-    # query += OPCODE
-    # AA = "0"
-    # query += AA
-    # TC = "0"
-    # query += TC
-    # RD = "1"
-    # query += RD
-    # RA = "0"
-    # query += RA
-    # Z = "000"
-    # query += Z
-    # RCODE = "0000"
-    # query += RCODE
-    # # End of subfields
+    query += FLAGS
 
     QDCOUNT = "0001"
     query += QDCOUNT
@@ -113,7 +112,7 @@ def send_request():
     answer = None
     for i in range(1, args['-r'] + 1):
         try:
-            client.sendto(bytes(query, encoding='utf8'), server)
+            client.sendto(bytes.fromhex(query), server)
 
             answer = client.recvfrom(receptionByteSize)
             break
@@ -153,9 +152,36 @@ def parse_response(response):
 
     return
 
+def parse_response_hex(response):
+    ID = response[0:4]
+    FLAGS = response[4:8]
+
+    BIN_FLAGS = bin(int(FLAGS, 16)).lstrip("0b")
+    QR = BIN_FLAGS[0:1]
+    OPCODE = BIN_FLAGS[1:5]
+    AA = BIN_FLAGS[5:6]
+    TC = BIN_FLAGS[6:7]
+    RD = BIN_FLAGS[7:8]
+    RA = BIN_FLAGS[8:9]
+    ZCODE = BIN_FLAGS[9:12]
+    RCODE = BIN_FLAGS[12:16]
+
+    QDCOUNT = response[8:12]
+    ANCOUNT = response[12:16]
+    NSCOUNT = response[16:20]
+    ARCOUNT = response[20:24]
+
 
 if __name__ == "__main__":
     check_CLI()
     response = send_request()[0].hex()
-    print(response)
-    parse_response(response)
+    # response = "3930e1010000000000000000"
+    # I put it in binary but the parsing still does not work and sadely I tried mutliple things but
+    # python is annoyed that it has to deal with concatenation of strings and ints
+    # I think it would just be way simpler to use the hex parsing :)
+    # furthermore, for some reason the DNS require a hexified byte encoding which makes sense
+    # but at least say that somewhere teacher ); how would we know we would assume a utf-8
+    # as any normal human being Well xD. At least it works ahaha.
+    # responseBin = bin(int(response, 16))
+
+    parse_response_hex(response)
