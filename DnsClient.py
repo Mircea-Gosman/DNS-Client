@@ -50,19 +50,27 @@ def send_request():
     ID = str(hex(random.getrandbits(16)).lstrip("0x"))
     query += ID
 
-    FLAGS = "0x0100"
+    FLAGS = "0100"
     query += FLAGS
 
-    # Subfields don't seem needed from the DNS Query doc we will see when testing the code
-    QR = "1"
-    OPCODE = "0000"
-    AA = "0"
-    TC = "0"
-    RD = "1"
-    RA = "0"
-    Z = "000"
-    RCODE = "0000"
-    # End of subfields
+    # # Subfields don't seem needed from the DNS Query doc we will see when testing the code
+    # QR = "1"
+    # query += QR
+    # OPCODE = "0000"
+    # query += OPCODE
+    # AA = "0"
+    # query += AA
+    # TC = "0"
+    # query += TC
+    # RD = "1"
+    # query += RD
+    # RA = "0"
+    # query += RA
+    # Z = "000"
+    # query += Z
+    # RCODE = "0000"
+    # query += RCODE
+    # # End of subfields
 
     QDCOUNT = "0001"
     query += QDCOUNT
@@ -103,7 +111,6 @@ def send_request():
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client.settimeout(args['-t'])
     answer = None
-
     for i in range(1, args['-r'] + 1):
         try:
             client.sendto(bytes(query, encoding='utf8'), server)
@@ -112,8 +119,8 @@ def send_request():
             break
         except:
             print(f"The request {i}/{args['-r']} timed out.")
-
-    print(answer)
+    client.close()
+    print(query)
     return answer
 
 
@@ -121,7 +128,7 @@ def send_request():
 def parse_response(response):
     r_len = response.bit_length()
     # Header
-    ID       = response >> (r_len - 16)                                                         & bin(16)            
+    ID       = response >> (r_len - 16)                                                         & bin(16)
     QR       = response >> (r_len - 16 - 1)                                                     & 1
     OP_CODE  = response >> (r_len - 16 - 1 - 4)                                                 & bin(4)
     AA       = response >> (r_len - 16 - 1 - 4 - 1)                                             & 1
@@ -149,5 +156,6 @@ def parse_response(response):
 
 if __name__ == "__main__":
     check_CLI()
-    response = send_request()
+    response = send_request()[0].hex()
+    print(response)
     parse_response(response)
