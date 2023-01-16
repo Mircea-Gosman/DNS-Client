@@ -117,8 +117,31 @@ def send_request():
     return answer
 
 
+# WoW SuCh ClEaN CoDe
 def parse_response(response):
+    r_len = response.bit_length()
+    # Header
+    ID       = response >> (r_len - 16)                                                         & bin(16)            
+    QR       = response >> (r_len - 16 - 1)                                                     & 1
+    OP_CODE  = response >> (r_len - 16 - 1 - 4)                                                 & bin(4)
+    AA       = response >> (r_len - 16 - 1 - 4 - 1)                                             & 1
+    TC       = response >> (r_len - 16 - 1 - 4 - 1 - 1)                                         & 1
+    RD       = response >> (r_len - 16 - 1 - 4 - 1 - 1 - 1)                                     & 1
+    RA       = response >> (r_len - 16 - 1 - 4 - 1 - 1 - 1 - 1)                                 & 1
+    Z        = response >> (r_len - 16 - 1 - 4 - 1 - 1 - 1 - 1 - 3)                             & bin(3)
+    R_CODE   = response >> (r_len - 16 - 1 - 4 - 1 - 1 - 1 - 1 - 3 - 4)                         & bin(4)
+    QD_COUNT = response >> (r_len - 16 - 1 - 4 - 1 - 1 - 1 - 1 - 3 - 4 - 16)                    & bin(16)
+    AN_COUNT = response >> (r_len - 16 - 1 - 4 - 1 - 1 - 1 - 1 - 3 - 4 - 16 - 16)               & bin(16)
+    NS_COUNT = response >> (r_len - 16 - 1 - 4 - 1 - 1 - 1 - 1 - 3 - 4 - 16 - 16 - 16)          & bin(16)
+    AR_COUNT = response >> (r_len - 16 - 1 - 4 - 1 - 1 - 1 - 1 - 3 - 4 - 16 - 16 - 16 - 16)     & bin(16)
 
+    # Original Query
+    QUERY = response >> (r_len - 96 - 19 * 8) & bin(19*8)
+
+    # Validate Header & Query [ wip]
+
+
+    # Answer
 
 
     return
