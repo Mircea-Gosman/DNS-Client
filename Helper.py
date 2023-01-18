@@ -32,11 +32,9 @@ def validate_integer(switch, value):
 
     return int(value)
 
-def parse_resource(response, header):
+def parse_resource(response, header, labels, res_start):
     bytes = oct(int(response, 16)).lstrip("0o")
     auth = "auth" if header["AA"] == 1 else "nonauth"
-    res_start = 43 # need to count query field size, tbd, should be byte#
-    labels = {}
     records = {"Answer": [], "Additional": []}
 
     # Extract each Record
@@ -47,7 +45,7 @@ def parse_resource(response, header):
         record_store = "Answer" if i < header["ANCOUNT"] else "Additional"
 
         # Name
-        NAME, end = parse_domain_name(labels, bytes, res_start)
+        names, end = parse_domain_names(labels, bytes, res_start) 
 
         TYPE     = bytes[end, end + 16]
         CLASS    = bytes[end + 16, end + 32]
@@ -59,28 +57,53 @@ def parse_resource(response, header):
             IP = RDATA
             records[record_store] = f"IP \t {ocstr(IP)} \t {ocstr(TTL)} \t {auth}"
         elif hex(TYPE) == 0x0002:
-            QNAME, _ = parse_domain_name(labels, bytes, end + 80) 
-            records[record_store] = f"NS \t {ocstr(QNAME)} \t {ocstr(TTL)} \t {auth}"
+            QNAME, _ = parse_domain_names(labels, bytes, end + 80) 
+            records[record_store] = f"NS \t {ocstr(QNAME[0])} \t {ocstr(TTL)} \t {auth}"
         elif hex(TYPE) == 0x005:
             records[record_store] = f"CNAME \t {ocstr(RDATA)} \t {ocstr(TTL)} \t {auth}"
         elif hex(TYPE) == 0x00f:
             PREFERENCE = RDATA[:16]
-            EXCHANGE, _ = parse_domain_name(labels, bytes, end + 96) 
-            records[record_store] = f"MX \t {ocstr(EXCHANGE)}\t {ocstr(PREFERENCE)} \t {ocstr(TTL)} \t {auth}"
+            EXCHANGE, _ = parse_domain_names(labels, bytes, end + 96) 
+            records[record_store] = f"MX \t {ocstr(EXCHANGE[0])}\t {ocstr(PREFERENCE)} \t {ocstr(TTL)} \t {auth}"
 
     print_records(records)
 
 
-def parse_domain_name(labels, resource, start):
-    #memoization [...] - WiP
+def parse_domain_names(labels, resource, start): 
+    names = []
     name = ""
     i = start
+    temp = ""
+    refs = []
 
     while True:
-        
-        return
+        if resource[i] == 0:
+            names.append(name)
+            name = ""
+            break
 
-    return name, i + 1
+        b = bin(int(resource[i], 8)).lstrip("0b")
+        
+        if (b >> 6) & 0b11: # TODO: Check Not in dict error
+            name = (name + '.' + labels[int(b & 0b111111)]).removeprefix('.') 
+            names.append(name)
+            name = ""
+            
+        if letters == 0:
+            for ref in refs:
+                labels[ref] += temp if labels["ref"] == "" else "." + temp
+
+            refs.append(i)
+            name += temp if name == "" else "." + temp
+            letters = int(resource[i])
+            temp = ""
+        else:            
+            temp += chr(resource[i])       
+
+        i += 1
+
+    return  names, i + 1
+
 
 def ocstr(octal):
     return ''.join([chr[c] for c in octal])

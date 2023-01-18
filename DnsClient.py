@@ -156,7 +156,11 @@ def parse_response(response):
     header["NSCOUNT"] = response[16:20]
     header["ARCOUNT"] = response[20:24]
 
-    Helper.parse_resource(response, header)
+    labels = {}
+    QNAME, QNAME_end = Helper.parse_domain_names(labels, oct(response).lstrip("0o"), 24*2)
+    QTYPE = response[QNAME_end, QNAME_end + 16]
+
+    Helper.parse_resource(response, header, labels, QNAME_end + 16)
 
 
 if __name__ == "__main__":
