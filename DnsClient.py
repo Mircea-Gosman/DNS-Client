@@ -2,6 +2,7 @@ import sys
 import Helper
 import socket
 import random
+import time
 
 args = {
     "-t": 5,
@@ -40,6 +41,10 @@ def check_CLI():
         exit(1)
 
     print(f"Parsed CLI: {args}")
+
+    print(f"DNSClient sending requesrt for {args['name']}")
+    print(f"Server: {args['server']}")
+    print(f"Request type: [{'MX' if args['-mx'] else 'NS' if args['-ns'] else 'A'}]")
 
 
 def send_request():
@@ -110,6 +115,9 @@ def send_request():
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client.settimeout(args['-t'])
     answer = None
+    start_time = time()
+    num_retries = 0
+
     for i in range(1, args['-r'] + 1):
         try:
             client.sendto(bytes.fromhex(query), server)
@@ -118,58 +126,37 @@ def send_request():
             break
         except:
             print(f"The request {i}/{args['-r']} timed out.")
+            num_retries += 1
     client.close()
     print(query)
+
+    print(f"Response received after {start_time - time()} secondes. ({num_retries} retries)")
+
     return answer
 
 
-# WoW SuCh ClEaN CoDe
 def parse_response(response):
-    r_len = response.bit_length()
-    # Header
-    ID       = response >> (r_len - 16)                                                         & bin(16)
-    QR       = response >> (r_len - 16 - 1)                                                     & 1
-    OP_CODE  = response >> (r_len - 16 - 1 - 4)                                                 & bin(4)
-    AA       = response >> (r_len - 16 - 1 - 4 - 1)                                             & 1
-    TC       = response >> (r_len - 16 - 1 - 4 - 1 - 1)                                         & 1
-    RD       = response >> (r_len - 16 - 1 - 4 - 1 - 1 - 1)                                     & 1
-    RA       = response >> (r_len - 16 - 1 - 4 - 1 - 1 - 1 - 1)                                 & 1
-    Z        = response >> (r_len - 16 - 1 - 4 - 1 - 1 - 1 - 1 - 3)                             & bin(3)
-    R_CODE   = response >> (r_len - 16 - 1 - 4 - 1 - 1 - 1 - 1 - 3 - 4)                         & bin(4)
-    QD_COUNT = response >> (r_len - 16 - 1 - 4 - 1 - 1 - 1 - 1 - 3 - 4 - 16)                    & bin(16)
-    AN_COUNT = response >> (r_len - 16 - 1 - 4 - 1 - 1 - 1 - 1 - 3 - 4 - 16 - 16)               & bin(16)
-    NS_COUNT = response >> (r_len - 16 - 1 - 4 - 1 - 1 - 1 - 1 - 3 - 4 - 16 - 16 - 16)          & bin(16)
-    AR_COUNT = response >> (r_len - 16 - 1 - 4 - 1 - 1 - 1 - 1 - 3 - 4 - 16 - 16 - 16 - 16)     & bin(16)
+    header = {}
 
-    # Original Query
-    QUERY = response >> (r_len - 96 - 19 * 8) & bin(19*8)
-
-    # Validate Header & Query [ wip]
-
-
-    # Answer
-
-
-    return
-
-def parse_response_hex(response):
-    ID = response[0:4]
+    header["ID"] = response[0:4]
     FLAGS = response[4:8]
 
     BIN_FLAGS = bin(int(FLAGS, 16)).lstrip("0b")
-    QR = BIN_FLAGS[0:1]
-    OPCODE = BIN_FLAGS[1:5]
-    AA = BIN_FLAGS[5:6]
-    TC = BIN_FLAGS[6:7]
-    RD = BIN_FLAGS[7:8]
-    RA = BIN_FLAGS[8:9]
-    ZCODE = BIN_FLAGS[9:12]
-    RCODE = BIN_FLAGS[12:16]
+    header["QR"] = BIN_FLAGS[0:1]
+    header["OPCODE"] = BIN_FLAGS[1:5]
+    header["AA"] = BIN_FLAGS[5:6]
+    header["TC"] = BIN_FLAGS[6:7]
+    header["RD"] = BIN_FLAGS[7:8]
+    header["RA"] = BIN_FLAGS[8:9]
+    header["ZCODE"] = BIN_FLAGS[9:12]
+    header["RCODE"] = BIN_FLAGS[12:16]
 
-    QDCOUNT = response[8:12]
-    ANCOUNT = response[12:16]
-    NSCOUNT = response[16:20]
-    ARCOUNT = response[20:24]
+    header["QDCOUNT"] = response[8:12]
+    header["ANCOUNT"] = response[12:16]
+    header["NSCOUNT"] = response[16:20]
+    header["ARCOUNT"] = response[20:24]
+
+    Helper.parse_resource(response, header)
 
 
 if __name__ == "__main__":
@@ -182,6 +169,5 @@ if __name__ == "__main__":
     # furthermore, for some reason the DNS require a hexified byte encoding which makes sense
     # but at least say that somewhere teacher ); how would we know we would assume a utf-8
     # as any normal human being Well xD. At least it works ahaha.
-    # responseBin = bin(int(response, 16))
 
-    parse_response_hex(response)
+    parse_response(response)
