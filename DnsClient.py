@@ -163,10 +163,10 @@ def parse_response(response):
     print("---")
     # print(response[24:])
     QNAME, QNAME_end = Helper.parse_domain_names(labels, response, 24)
-    print(QNAME)
     QTYPE = response[QNAME_end: QNAME_end + 4]
+    QCLASS = response[QNAME_end + 4: QNAME_end + 8]
 
-    Helper.parse_resource(response, header, labels, QNAME_end + 4)
+    Helper.parse_resource(response, header, labels, QNAME_end + 8)
 
 
 if __name__ == "__main__":

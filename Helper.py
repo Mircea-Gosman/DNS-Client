@@ -45,42 +45,40 @@ def parse_resource(response, header, labels, res_start):
 
         # Name
         names, end = parse_domain_names(labels, response, res_start) 
-        
+
         TYPE     = int(response[end: end + 4], 16)
         CLASS    = response[end + 4: end + 8]
         TTL      = response[end + 8: end + 16]
-        RDLENGTH = int(response[end + 16: end + 24], 16)
-        RDATA    = response[end + 24: end + 24 + RDLENGTH]
-        print(end)
-        print(response)
-        print(response[end:])
-        print(hex(TYPE))
-        if hex(TYPE) == 0x0001:
-            IP = RDATA
-            records[record_store] = f"IP \t {ocstr(IP)} \t {ocstr(TTL)} \t {auth}"
-        elif hex(TYPE) == 0x0002:
+        RDLENGTH = int(response[end + 16: end + 20], 16)
+        RDATA    = response[end + 20: end + 20 + RDLENGTH * 2]
+        
+        if TYPE == 0x0001:
+            records[record_store].append(f"IP \t {parseIP(RDATA)} \t {int(TTL, 16)} \t {auth}")
+        elif TYPE == 0x0002:
             QNAME, _ = parse_domain_names(labels, response, end + 80) 
-            records[record_store] = f"NS \t {ocstr(QNAME[0])} \t {ocstr(TTL)} \t {auth}"
-        elif hex(TYPE) == 0x005:
-            records[record_store] = f"CNAME \t {ocstr(RDATA)} \t {ocstr(TTL)} \t {auth}"
-        elif hex(TYPE) == 0x00f:
+            records[record_store].append(f"NS \t {numstr(QNAME[0])} \t {numstr(TTL)} \t {auth}")
+        elif TYPE == 0x005:
+            records[record_store].append(f"CNAME \t {numstr(RDATA)} \t {numstr(TTL)} \t {auth}")
+        elif TYPE == 0x00f:
             PREFERENCE = RDATA[:16]
-            EXCHANGE, _ = parse_domain_names(labels, response, end + 28) 
-            records[record_store] = f"MX \t {ocstr(EXCHANGE[0])}\t {ocstr(PREFERENCE)} \t {ocstr(TTL)} \t {auth}"
+            EXCHANGE, _ = parse_domain_names(labels, response, end + 24, RDLENGTH) 
+            records[record_store].append(f"MX \t {numstr(EXCHANGE[0])}\t {numstr(PREFERENCE)} \t {numstr(TTL)} \t {auth}")
 
-        res_start = end + 24 + RDLENGTH
+        res_start = end + 20 + RDLENGTH
+
+    print(records)    
 
     print_records(records)
 
 
-def parse_domain_names(labels, resource, start): 
+def parse_domain_names(labels, resource, start, size=0): 
     names = []
     name = ""
     i = start
     temp = ""
     refs = []
     letters = 0
-    
+
     while True:
         byte = int(''.join(resource[i:i+2]), 16)
         
@@ -88,17 +86,34 @@ def parse_domain_names(labels, resource, start):
             name += temp if name == "" else "." + temp
             names.append(name)
             add_to_labels(refs, labels, temp)
-            break
+            name = ""
+            temp = ""
+            letters = 0
+
+            if size == 0:
+                break
+
+            size -= (i - start)
+            start = i
             
         if letters == 0:
-            if (byte >> 6) & 0b11: # TODO: Check Not in dict error
-                name = (name + '.' + labels[int(byte & 0b111111)]).removeprefix('.') 
+            pointer = int(''.join(resource[i:i+4]), 16)
+            if (pointer >> 14) & 0b11: # TODO: Check Not in dict error
+                name = (name + '.' + labels[int(pointer & 0b11111111111111)]) if name != "" else labels[int(pointer & 0b11111111111111)]
                 names.append(name)
                 name = ""
+                i += 4
+
+                if size == 0:
+                    i -= 2
+                    break
+                
+                size -= (i - start)
+                start = i
             else:
                 add_to_labels(refs, labels, temp)
 
-                refs.append(i)
+                refs.append(int(i / 2))
                 name += temp if name == "" else "." + temp
                 letters = byte
                 temp = ""
@@ -110,6 +125,8 @@ def parse_domain_names(labels, resource, start):
     
     return names, i + 2
 
+
+
 def add_to_labels(refs, labels, temp): 
     for ref in refs:
         if ref not in labels: 
@@ -117,8 +134,21 @@ def add_to_labels(refs, labels, temp):
 
         labels[ref] += temp if labels[ref] == "" else "." + temp
 
-def ocstr(octal):
-    return ''.join([chr[c] for c in octal])
+def parseIP(IP):
+    ip_string = ""
+    i = 0
+    
+    while True:
+        ip_string += "." + str(int(IP[i:i+2], 16))
+
+        i += 2
+        if i >= len(IP): 
+            break
+            
+    return ip_string[1:]
+
+def numstr(num):
+    return bytearray.fromhex(num).decode()
 
 def print_records(records):
     for category in records:
@@ -126,7 +156,7 @@ def print_records(records):
             print(f"{category} Section ({len(records[category])} records)")
 
         for record in records[category]:
-            print(f"{record}")
+            print(record)
 
     if len(records["Answer"]) != 0 and len(records["Additional"]) != 0:
         print("NOTFOUND")
