@@ -42,7 +42,7 @@ def check_CLI():
 
     print(f"Parsed CLI: {args}")
 
-    print(f"DNSClient sending requesrt for {args['name']}")
+    print(f"DNSClient sending request for {args['name']}")
     print(f"Server: {args['server']}")
     print(f"Request type: [{'MX' if args['-mx'] else 'NS' if args['-ns'] else 'A'}]")
 
@@ -115,7 +115,7 @@ def send_request():
     client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client.settimeout(args['-t'])
     answer = None
-    start_time = time()
+    start_time = time.time()
     num_retries = 0
 
     for i in range(1, args['-r'] + 1):
@@ -130,7 +130,7 @@ def send_request():
     client.close()
     print(query)
 
-    print(f"Response received after {start_time - time()} secondes. ({num_retries} retries)")
+    print(f"Response received after {time.time() - start_time} secondes. ({num_retries} retries)")
 
     return answer
 
@@ -151,16 +151,22 @@ def parse_response(response):
     header["ZCODE"] = BIN_FLAGS[9:12]
     header["RCODE"] = BIN_FLAGS[12:16]
 
-    header["QDCOUNT"] = response[8:12]
-    header["ANCOUNT"] = response[12:16]
-    header["NSCOUNT"] = response[16:20]
-    header["ARCOUNT"] = response[20:24]
+    header["QDCOUNT"] = int(response[8:12] , 16)
+    header["ANCOUNT"] = int(response[12:16], 16)
+    header["NSCOUNT"] = int(response[16:20], 16)
+    header["ARCOUNT"] = int(response[20:24], 16)
 
+    print()
     labels = {}
-    QNAME, QNAME_end = Helper.parse_domain_names(labels, oct(response).lstrip("0o"), 24*2)
-    QTYPE = response[QNAME_end, QNAME_end + 16]
+    print(header)
+    print(response)
+    print("---")
+    # print(response[24:])
+    QNAME, QNAME_end = Helper.parse_domain_names(labels, response, 24)
+    print(QNAME)
+    QTYPE = response[QNAME_end: QNAME_end + 4]
 
-    Helper.parse_resource(response, header, labels, QNAME_end + 16)
+    Helper.parse_resource(response, header, labels, QNAME_end + 4)
 
 
 if __name__ == "__main__":

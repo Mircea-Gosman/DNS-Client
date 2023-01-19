@@ -33,7 +33,6 @@ def validate_integer(switch, value):
     return int(value)
 
 def parse_resource(response, header, labels, res_start):
-    bytes = oct(int(response, 16)).lstrip("0o")
     auth = "auth" if header["AA"] == 1 else "nonauth"
     records = {"Answer": [], "Additional": []}
 
@@ -45,26 +44,31 @@ def parse_resource(response, header, labels, res_start):
         record_store = "Answer" if i < header["ANCOUNT"] else "Additional"
 
         # Name
-        names, end = parse_domain_names(labels, bytes, res_start) 
-
-        TYPE     = bytes[end, end + 16]
-        CLASS    = bytes[end + 16, end + 32]
-        TTL      = bytes[end + 32, end + 64]
-        RDLENGTH = bytes[end + 64, end + 80]
-        RDATA    = bytes[end + 80, end + 80 + RDLENGTH]
-
+        names, end = parse_domain_names(labels, response, res_start) 
+        
+        TYPE     = int(response[end: end + 4], 16)
+        CLASS    = response[end + 4: end + 8]
+        TTL      = response[end + 8: end + 16]
+        RDLENGTH = int(response[end + 16: end + 24], 16)
+        RDATA    = response[end + 24: end + 24 + RDLENGTH]
+        print(end)
+        print(response)
+        print(response[end:])
+        print(hex(TYPE))
         if hex(TYPE) == 0x0001:
             IP = RDATA
             records[record_store] = f"IP \t {ocstr(IP)} \t {ocstr(TTL)} \t {auth}"
         elif hex(TYPE) == 0x0002:
-            QNAME, _ = parse_domain_names(labels, bytes, end + 80) 
+            QNAME, _ = parse_domain_names(labels, response, end + 80) 
             records[record_store] = f"NS \t {ocstr(QNAME[0])} \t {ocstr(TTL)} \t {auth}"
         elif hex(TYPE) == 0x005:
             records[record_store] = f"CNAME \t {ocstr(RDATA)} \t {ocstr(TTL)} \t {auth}"
         elif hex(TYPE) == 0x00f:
             PREFERENCE = RDATA[:16]
-            EXCHANGE, _ = parse_domain_names(labels, bytes, end + 96) 
+            EXCHANGE, _ = parse_domain_names(labels, response, end + 28) 
             records[record_store] = f"MX \t {ocstr(EXCHANGE[0])}\t {ocstr(PREFERENCE)} \t {ocstr(TTL)} \t {auth}"
+
+        res_start = end + 24 + RDLENGTH
 
     print_records(records)
 
@@ -75,35 +79,43 @@ def parse_domain_names(labels, resource, start):
     i = start
     temp = ""
     refs = []
-
+    letters = 0
+    
     while True:
-        if resource[i] == 0:
-            names.append(name)
-            name = ""
-            break
-
-        b = bin(int(resource[i], 8)).lstrip("0b")
+        byte = int(''.join(resource[i:i+2]), 16)
         
-        if (b >> 6) & 0b11: # TODO: Check Not in dict error
-            name = (name + '.' + labels[int(b & 0b111111)]).removeprefix('.') 
+        if byte == 0:
+            name += temp if name == "" else "." + temp
             names.append(name)
-            name = ""
+            add_to_labels(refs, labels, temp)
+            break
             
         if letters == 0:
-            for ref in refs:
-                labels[ref] += temp if labels["ref"] == "" else "." + temp
+            if (byte >> 6) & 0b11: # TODO: Check Not in dict error
+                name = (name + '.' + labels[int(byte & 0b111111)]).removeprefix('.') 
+                names.append(name)
+                name = ""
+            else:
+                add_to_labels(refs, labels, temp)
 
-            refs.append(i)
-            name += temp if name == "" else "." + temp
-            letters = int(resource[i])
-            temp = ""
-        else:            
-            temp += chr(resource[i])       
+                refs.append(i)
+                name += temp if name == "" else "." + temp
+                letters = byte
+                temp = ""
+        else:
+            temp += chr(byte)       
+            letters -= 1
 
-        i += 1
+        i += 2
+    
+    return names, i + 2
 
-    return  names, i + 1
+def add_to_labels(refs, labels, temp): 
+    for ref in refs:
+        if ref not in labels: 
+            labels[ref] = ""
 
+        labels[ref] += temp if labels[ref] == "" else "." + temp
 
 def ocstr(octal):
     return ''.join([chr[c] for c in octal])
@@ -118,3 +130,4 @@ def print_records(records):
 
     if len(records["Answer"]) != 0 and len(records["Additional"]) != 0:
         print("NOTFOUND")
+
