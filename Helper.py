@@ -45,29 +45,28 @@ def parse_resource(response, header, labels, res_start):
 
         # Name
         names, end = parse_domain_names(labels, response, res_start) 
-
+        
         TYPE     = int(response[end: end + 4], 16)
         CLASS    = response[end + 4: end + 8]
-        TTL      = response[end + 8: end + 16]
+        TTL      = int(response[end + 8: end + 16], 16)
         RDLENGTH = int(response[end + 16: end + 20], 16)
         RDATA    = response[end + 20: end + 20 + RDLENGTH * 2]
         
         if TYPE == 0x0001:
-            records[record_store].append(f"IP \t {parseIP(RDATA)} \t {int(TTL, 16)} \t {auth}")
+            records[record_store].append(f"IP \t {parseIP(RDATA)} \t {TTL} \t {auth}")
         elif TYPE == 0x0002:
             QNAME, _ = parse_domain_names(labels, response, end + 80) 
-            records[record_store].append(f"NS \t {numstr(QNAME[0])} \t {numstr(TTL)} \t {auth}")
+            records[record_store].append(f"NS \t {numstr(QNAME[0])} \t {TTL} \t {auth}")
         elif TYPE == 0x005:
-            records[record_store].append(f"CNAME \t {numstr(RDATA)} \t {numstr(TTL)} \t {auth}")
+            CNAME, _ = parse_domain_names(labels, response, end + 20) 
+            records[record_store].append(f"CNAME \t {CNAME[0]} \t {TTL} \t {auth}")
         elif TYPE == 0x00f:
             PREFERENCE = RDATA[:16]
-            EXCHANGE, _ = parse_domain_names(labels, response, end + 24, RDLENGTH) 
-            records[record_store].append(f"MX \t {numstr(EXCHANGE[0])}\t {numstr(PREFERENCE)} \t {numstr(TTL)} \t {auth}")
+            EXCHANGE, _ = parse_domain_names(labels, response, end + 24, RDLENGTH * 2) 
+            records[record_store].append(f"MX \t {numstr(EXCHANGE[0])}\t {numstr(PREFERENCE)} \t {TTL} \t {auth}")
 
-        res_start = end + 20 + RDLENGTH
-
-    print(records)    
-
+        res_start = end + 20 + RDLENGTH * 2
+        
     print_records(records)
 
 
@@ -99,9 +98,11 @@ def parse_domain_names(labels, resource, start, size=0):
         if letters == 0:
             pointer = int(''.join(resource[i:i+4]), 16)
             if (pointer >> 14) & 0b11: # TODO: Check Not in dict error
+                name += temp if name == "" else "." + temp
                 name = (name + '.' + labels[int(pointer & 0b11111111111111)]) if name != "" else labels[int(pointer & 0b11111111111111)]
                 names.append(name)
                 name = ""
+                temp = ""
                 i += 4
 
                 if size == 0:
@@ -148,7 +149,7 @@ def parseIP(IP):
     return ip_string[1:]
 
 def numstr(num):
-    return bytearray.fromhex(num).decode()
+    return bytearray.fromhex(num).decode(encoding="utf-8")
 
 def print_records(records):
     for category in records:
@@ -158,6 +159,6 @@ def print_records(records):
         for record in records[category]:
             print(record)
 
-    if len(records["Answer"]) != 0 and len(records["Additional"]) != 0:
+    if len(records["Answer"]) == 0 and len(records["Additional"]) == 0:
         print("NOTFOUND")
 
