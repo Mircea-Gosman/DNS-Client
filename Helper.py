@@ -38,8 +38,8 @@ def parse_resource(response, header, labels, res_start):
 
     # Extract each Record
     for i in range(header["ANCOUNT"] + header["NSCOUNT"] + header["ARCOUNT"]):    
-        if i >=  header["ANCOUNT"]  and i < header["ANCOUNT"] + header["NSCOUNT"]:
-            continue
+        # if i >=  header["ANCOUNT"]  and i < header["ANCOUNT"] + header["NSCOUNT"]:
+        #     continue
 
         record_store = "Answer" if i < header["ANCOUNT"] else "Additional"
 
@@ -51,19 +51,27 @@ def parse_resource(response, header, labels, res_start):
         TTL      = int(response[end + 8: end + 16], 16)
         RDLENGTH = int(response[end + 16: end + 20], 16)
         RDATA    = response[end + 20: end + 20 + RDLENGTH * 2]
+
+        # Don't both with type checking & data section parsing if it is an authority record
+        if i >=  header["ANCOUNT"]  and i < header["ANCOUNT"] + header["NSCOUNT"]:
+            res_start = end + 20 + RDLENGTH * 2
+            continue
         
         if TYPE == 0x0001:
             records[record_store].append(f"IP \t {parseIP(RDATA)} \t {TTL} \t {auth}")
         elif TYPE == 0x0002:
-            QNAME, _ = parse_domain_names(labels, response, end + 80) 
-            records[record_store].append(f"NS \t {numstr(QNAME[0])} \t {TTL} \t {auth}")
+            QNAME, _ = parse_domain_names(labels, response, end + 20)
+            records[record_store].append(f"NS \t {QNAME[0]} \t {TTL} \t {auth}")
         elif TYPE == 0x005:
             CNAME, _ = parse_domain_names(labels, response, end + 20) 
             records[record_store].append(f"CNAME \t {CNAME[0]} \t {TTL} \t {auth}")
-        elif TYPE == 0x00f:
-            PREFERENCE = RDATA[:16]
+        elif TYPE == 0x00f: # Try www.facebook.com, it has an mx record in the answer section
+            PREFERENCE = int(RDATA[:16], 16)
             EXCHANGE, _ = parse_domain_names(labels, response, end + 24, RDLENGTH * 2) 
-            records[record_store].append(f"MX \t {numstr(EXCHANGE[0])}\t {numstr(PREFERENCE)} \t {TTL} \t {auth}")
+            records[record_store].append(f"MX \t {EXCHANGE[0]}\t {PREFERENCE} \t {TTL} \t {auth}") 
+        else:
+            print(f"ERROR \t Found record with unhandled type {TYPE} .")
+
 
         res_start = end + 20 + RDLENGTH * 2
         
@@ -77,7 +85,7 @@ def parse_domain_names(labels, resource, start, size=0):
     temp = ""
     refs = []
     letters = 0
-
+    
     while True:
         byte = int(''.join(resource[i:i+2]), 16)
         

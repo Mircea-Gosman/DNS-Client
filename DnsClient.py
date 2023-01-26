@@ -132,6 +132,10 @@ def send_request():
 
     print(f"Response received after {time.time() - start_time} secondes. ({num_retries} retries)")
 
+    if answer is None or len(answer) == 0:
+        print("ERROR \t Reached maximum number of retries and did not obtain a response.")
+        exit(1)
+
     return answer
 
 
@@ -172,12 +176,4 @@ def parse_response(response):
 if __name__ == "__main__":
     check_CLI()
     response = send_request()[0].hex()
-    # response = "3930e1010000000000000000"
-    # I put it in binary but the parsing still does not work and sadely I tried mutliple things but
-    # python is annoyed that it has to deal with concatenation of strings and ints
-    # I think it would just be way simpler to use the hex parsing :)
-    # furthermore, for some reason the DNS require a hexified byte encoding which makes sense
-    # but at least say that somewhere teacher ); how would we know we would assume a utf-8
-    # as any normal human being Well xD. At least it works ahaha.
-
     parse_response(response)
