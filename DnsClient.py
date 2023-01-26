@@ -14,6 +14,8 @@ args = {
     "name": ""
 }
 
+sender_header = {}
+
 
 def check_CLI():
     # Collect Data
@@ -40,8 +42,9 @@ def check_CLI():
         print("ERROR:\tCan not enable both mail server and name server at the same time.")
         exit(1)
 
-    print(f"Parsed CLI: {args}")
-
+    print("\n-------------------------------------------------------")
+    print(f"Request Summary")
+    print("-------------------------------------------------------")
     print(f"DNSClient sending request for {args['name']}")
     print(f"Server: {args['server']}")
     print(f"Request type: [{'MX' if args['-mx'] else 'NS' if args['-ns'] else 'A'}]")
@@ -127,49 +130,34 @@ def send_request():
         except:
             print(f"The request {i}/{args['-r']} timed out.")
             num_retries += 1
+
     client.close()
-    print(query)
-
-    print(f"Response received after {time.time() - start_time} secondes. ({num_retries} retries)")
-
+    
     if answer is None or len(answer) == 0:
         print("ERROR \t Reached maximum number of retries and did not obtain a response.")
         exit(1)
+
+    print(f"Response received after {time.time() - start_time} secondes. ({num_retries} retries)")
+
+    Helper.parse_header(query, sender_header)
 
     return answer
 
 
 def parse_response(response):
+    # Header
     header = {}
+    Helper.parse_header(response, header)
+    Helper.validate_response_header(header, sender_header)
 
-    header["ID"] = response[0:4]
-    FLAGS = response[4:8]
-
-    BIN_FLAGS = bin(int(FLAGS, 16)).lstrip("0b")
-    header["QR"] = BIN_FLAGS[0:1]
-    header["OPCODE"] = BIN_FLAGS[1:5]
-    header["AA"] = BIN_FLAGS[5:6]
-    header["TC"] = BIN_FLAGS[6:7]
-    header["RD"] = BIN_FLAGS[7:8]
-    header["RA"] = BIN_FLAGS[8:9]
-    header["ZCODE"] = BIN_FLAGS[9:12]
-    header["RCODE"] = BIN_FLAGS[12:16]
-
-    header["QDCOUNT"] = int(response[8:12] , 16)
-    header["ANCOUNT"] = int(response[12:16], 16)
-    header["NSCOUNT"] = int(response[16:20], 16)
-    header["ARCOUNT"] = int(response[20:24], 16)
-
-    print()
+    # Question
     labels = {}
-    print(header)
-    print(response)
-    print("---")
-    # print(response[24:])
+    
     QNAME, QNAME_end = Helper.parse_domain_names(labels, response, 24)
     QTYPE = response[QNAME_end: QNAME_end + 4]
     QCLASS = response[QNAME_end + 4: QNAME_end + 8]
     
+    # Response
     Helper.parse_resource(response, header, labels, QNAME_end + 8)
 
 
