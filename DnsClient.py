@@ -169,7 +169,7 @@ def parse_response(response):
     QNAME, QNAME_end = Helper.parse_domain_names(labels, response, 24)
     QTYPE = response[QNAME_end: QNAME_end + 4]
     QCLASS = response[QNAME_end + 4: QNAME_end + 8]
-
+    
     Helper.parse_resource(response, header, labels, QNAME_end + 8)
 
 

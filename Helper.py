@@ -22,7 +22,7 @@ def validate_domain(domain):
         print("ERROR:\tThe domain name should be of format: www.myDomain.com")
         exit(4)
 
-    return "www." + domain if "www" not in domain else domain
+    return domain
 
 
 def validate_integer(switch, value):
@@ -37,10 +37,7 @@ def parse_resource(response, header, labels, res_start):
     records = {"Answer": [], "Additional": []}
 
     # Extract each Record
-    for i in range(header["ANCOUNT"] + header["NSCOUNT"] + header["ARCOUNT"]):    
-        # if i >=  header["ANCOUNT"]  and i < header["ANCOUNT"] + header["NSCOUNT"]:
-        #     continue
-
+    for i in range(header["ANCOUNT"] + header["NSCOUNT"] + header["ARCOUNT"]):  
         record_store = "Answer" if i < header["ANCOUNT"] else "Additional"
 
         # Name
@@ -52,11 +49,11 @@ def parse_resource(response, header, labels, res_start):
         RDLENGTH = int(response[end + 16: end + 20], 16)
         RDATA    = response[end + 20: end + 20 + RDLENGTH * 2]
 
-        # Don't both with type checking & data section parsing if it is an authority record
+        # Don't bother with type checking & data section parsing if it is an authority record
         if i >=  header["ANCOUNT"]  and i < header["ANCOUNT"] + header["NSCOUNT"]:
             res_start = end + 20 + RDLENGTH * 2
             continue
-        
+
         if TYPE == 0x0001:
             records[record_store].append(f"IP \t {parseIP(RDATA)} \t {TTL} \t {auth}")
         elif TYPE == 0x0002:
@@ -65,7 +62,7 @@ def parse_resource(response, header, labels, res_start):
         elif TYPE == 0x005:
             CNAME, _ = parse_domain_names(labels, response, end + 20) 
             records[record_store].append(f"CNAME \t {CNAME[0]} \t {TTL} \t {auth}")
-        elif TYPE == 0x00f: # Try www.facebook.com, it has an mx record in the answer section
+        elif TYPE == 0x00f: 
             PREFERENCE = int(RDATA[:16], 16)
             EXCHANGE, _ = parse_domain_names(labels, response, end + 24, RDLENGTH * 2) 
             records[record_store].append(f"MX \t {EXCHANGE[0]}\t {PREFERENCE} \t {TTL} \t {auth}") 
@@ -105,10 +102,12 @@ def parse_domain_names(labels, resource, start, size=0):
             
         if letters == 0:
             pointer = int(''.join(resource[i:i+4]), 16)
+            
             if (pointer >> 14) & 0b11: # TODO: Check Not in dict error
                 name += temp if name == "" else "." + temp
                 name = (name + '.' + labels[int(pointer & 0b11111111111111)]) if name != "" else labels[int(pointer & 0b11111111111111)]
                 names.append(name)
+                add_to_labels(refs, labels, temp)
                 name = ""
                 temp = ""
                 i += 4
