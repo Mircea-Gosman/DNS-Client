@@ -236,5 +236,3 @@ def validate_response_header(received_header, sender_ID):
 
     if received_header["RCODE"] == "5":
         print(f"ERROR \t Refused: the name server refuses to perform the requested operation for policy reasons.")
-
-    exit(1)
