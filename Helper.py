@@ -205,36 +205,36 @@ def validate_response_header(received_header, sender_ID):
     print(f"Error Logs")
     print("-------------------------------------------------------")
 
-    if received_header["RA"] != 1:  
+    if received_header["RA"] != "1":
         print(f"ERROR \t Server does not support recursive queries. RA bit is set to {received_header['QR']}.")
         return
 
-    if received_header["TC"] == 1:
+    if received_header["TC"] == "1":
         print(f"WARNING \t The response message was truncated. Found TC bit equal to {received_header['TC']}")
 
-    if sent_header["ID"] != received_header["ID"]:
+    if received_header["ID"] != received_header["ID"]:
         print(f"ERROR \t Response header ID {received_header['ID']} does not match request header ID {received_header['ID']}.")
 
-    if received_header["QDCOUNT"] != 1: 
+    if received_header["QDCOUNT"] != 1:
         print(f"ERROR \t Response header indicates having more than 1 question. Found QDCOUNT of {received_header['QDCOUNT']}.")
 
-    if received_header["QR"] != 1: 
+    if received_header["QR"] != "1":
         print(f"ERROR \t Response header is not a response. QR bit is set to {received_header['QR']}.")
 
-    if received_header["RCODE"] == 1:
+    if received_header["RCODE"] == "1":
         print(f"ERROR \t Format error: the name server is unable to interpret the query.")
 
-    if received_header["RCODE"] == 2:
-        print(f"ERROR \t Server failure: the name server was unable to process this query" + 
+    if received_header["RCODE"] == "2":
+        print(f"ERROR \t Server failure: the name server was unable to process this query" +
                 " due to a problem with the name server.")
 
-    if received_header["RCODE"] == 3 and received_header["AA"]: 
+    if received_header["RCODE"] == "3" and received_header["AA"]:
         print(f"NOTFOUND \t Name error: authoritative server indicates the requested domain name does not exist.")
 
-    if received_header["RCODE"] == 4:
+    if received_header["RCODE"] == "4":
         print(f"ERROR \t Not implemented: the name server does not support the requested kind of query.")
 
-    if received_header["RCODE"] == 5:
+    if received_header["RCODE"] == "5":
         print(f"ERROR \t Refused: the name server refuses to perform the requested operation for policy reasons.")
-        
+
     exit(1)

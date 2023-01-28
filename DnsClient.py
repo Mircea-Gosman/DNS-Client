@@ -94,7 +94,7 @@ def send_request():
     nameArray = args["name"].split(".")
     QNAME = ""
     for name in nameArray:
-        length = str(oct(len(name)).lstrip("0o")).zfill(2)
+        length = hex(len(name)).lstrip("0x").zfill(2)
         asciiName = name.encode("utf-8").hex()
         QNAME += length
         QNAME += asciiName
