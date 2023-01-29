@@ -87,6 +87,9 @@ def parse_domain_names(labels, resource, start, size=0):
     letters = 0
     
     while True:
+        if ''.join(resource[i:i+2]) == "":
+            break
+
         byte = int(''.join(resource[i:i+2]), 16)
         
         if byte == 0:
