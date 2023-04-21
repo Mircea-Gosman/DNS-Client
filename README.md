@@ -2,7 +2,7 @@
 <h3 align='center'>Implemented within the Scope of ECSE 316 at McGill University</h3>
 
 ## Authors
-* Mircea Gosman - mirceagosman@mgail.com <br>
+* Mircea Gosman - mirceagosman@gmail.com <br>
 * Abdelmadjid Kamli 
 
 ## Abstract
